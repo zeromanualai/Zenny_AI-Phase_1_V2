@@ -1,3 +1,0 @@
-"""
-Zenny Core API Routes
-"""
