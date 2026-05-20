@@ -1,0 +1,101 @@
+{
+  "name": "Zenny — Shopify Order Lookup",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "shopify-order-lookup",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-shopify-order",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "shopify-order-lookup"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://{{ $json.body.shopify_domain }}.myshopify.com/admin/api/2024-04/orders.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "email", "value": "={{ $json.body.email }}" },
+            { "name": "limit", "value": "=1" }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Shopify-Access-Token", "value": "={{ $json.body.shopify_access_token }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-shopify-api",
+      "name": "HTTP Request (Shopify)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $input.first().json.orders || [];
+if (orders.length === 0) {
+  return [{ json: { found: false, message: 'No orders found for this email' } }];
+}
+
+const order = orders[0];
+return [{
+  json: {
+    found: true,
+    order_id: order.name || order.order_number,
+    status: order.fulfillment_status || 'unfulfilled',
+    tracking_number: order.fulfillments?.[0]?.tracking_number || null,
+    carrier: order.fulfillments?.[0]?.tracking_company || null,
+    total: order.total_price,
+    created_at: order.created_at,
+    items: order.line_items.map(i => ({
+      name: i.title,
+      quantity: i.quantity,
+      price: i.price
+    }))
+  }
+}];"
+      },
+      "id": "code-transform",
+      "name": "Transform Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "HTTP Request (Shopify)", "type": "main", "index": 0 }]]
+    },
+    "HTTP Request (Shopify)": {
+      "main": [[{ "node": "Transform Data", "type": "main", "index": 0 }]]
+    },
+    "Transform Data": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["zenny", "shopify"]
+}

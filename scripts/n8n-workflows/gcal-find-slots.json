@@ -1,0 +1,88 @@
+{
+  "name": "Zenny — Google Calendar Find Slots",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gcal-find-slots",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-gcal",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "gcal-find-slots"
+    },
+    {
+      "parameters": {
+        "operation": "availability",
+        "calendar": "={{ $json.body.calendar_id }}",
+        "timeMin": "={{ $json.body.date }}T00:00:00Z",
+        "timeMax": "={{ $json.body.date }}T23:59:59Z",
+        "options": {}
+      },
+      "id": "gcal-node",
+      "name": "Google Calendar",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const busy = $input.first().json.busy || [];
+const date = $json.body.date;
+const slots = [];
+
+// Generate 1-hour slots from 9 AM to 5 PM
+for (let hour = 9; hour < 17; hour++) {
+  const start = `${date}T${String(hour).padStart(2, '0')}:00:00`;
+  const end = `${date}T${String(hour + 1).padStart(2, '0')}:00:00`;
+  
+  const isBusy = busy.some(b => {
+    return new Date(start) < new Date(b.end) && new Date(end) > new Date(b.start);
+  });
+  
+  if (!isBusy) {
+    slots.push({
+      start: `${hour}:00`,
+      end: `${hour + 1}:00`,
+      available: true
+    });
+  }
+}
+
+return [{ json: { date, slots, count: slots.length } }];"
+      },
+      "id": "code-slots",
+      "name": "Calculate Slots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond-gcal",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Google Calendar", "type": "main", "index": 0 }]]
+    },
+    "Google Calendar": {
+      "main": [[{ "node": "Calculate Slots", "type": "main", "index": 0 }]]
+    },
+    "Calculate Slots": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["zenny", "calendar"]
+}
