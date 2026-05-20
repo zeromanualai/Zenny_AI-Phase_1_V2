@@ -1,0 +1,8 @@
+#5/20/26
+1. docs/*env files..
+2. zenny-core/.env.example files
+3. railway.json -> manual input.
+4. HAve to follow both installation file while deplying. !!!!
+
+
+**Gap: 1,3,9,10 Closed

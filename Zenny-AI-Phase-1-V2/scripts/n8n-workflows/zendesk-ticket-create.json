@@ -1,0 +1,64 @@
+{
+  "name": "Zenny — Zendesk Ticket Create",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zendesk-ticket-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-zendesk",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "zendesk-ticket-create"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $json.body.subdomain }}.zendesk.com/api/v2/tickets.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "ticket": {
+            "subject": "={{ $json.body.subject }}",
+            "comment": { "body": "={{ $json.body.body }}", "public": false },
+            "priority": "={{ $json.body.priority || 'normal' }}",
+            "requester": { "email": "={{ $json.body.email }}" },
+            "tags": ["zenny", "ai_escalation"]
+          }
+        },
+        "options": {}
+      },
+      "id": "http-zendesk",
+      "name": "HTTP Request (Zendesk)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond-zendesk",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "HTTP Request (Zendesk)", "type": "main", "index": 0 }]]
+    },
+    "HTTP Request (Zendesk)": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["zenny", "zendesk"]
+}
