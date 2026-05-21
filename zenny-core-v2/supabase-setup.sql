@@ -190,5 +190,26 @@ CREATE INDEX idx_action_logs_client_id ON action_logs(client_id);
 CREATE INDEX idx_action_logs_created_at ON action_logs(created_at DESC);
 
 -- =====================================================
+-- LLM COST LOGS (Gap #3 Fix)
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS llm_cost_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID REFERENCES clients(id),
+  conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+  model_used TEXT NOT NULL,
+  input_tokens INT NOT NULL DEFAULT 0,
+  output_tokens INT NOT NULL DEFAULT 0,
+  cost_usd DECIMAL(10,6) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_llm_cost_logs_client_created 
+  ON llm_cost_logs(client_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_llm_cost_logs_model 
+  ON llm_cost_logs(model_used, created_at DESC);
+  
+-- =====================================================
 -- DONE
 -- =====================================================
