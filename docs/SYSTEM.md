@@ -166,20 +166,33 @@ zeromanualai-zenny_ai-phase_1_v2/
 ## TESTING
 
 ```bash
-# Unit tests
-poetry run pytest tests/ -v
+# --- LOCAL MACHINE (Static checks only) ---
+# Syntax / import validation
+poetry run python -m py_compile src/main.py
 
-# Eval suite (requires API keys)
-poetry run pytest src/evals/runner.py -v
+# Linting
+poetry run black src/ --check
+poetry run ruff check src/
 
-# Health check
-curl http://localhost:8000/health
+# --- CLOUD TESTING (All integration & E2E tests) ---
+# Trigger full CI suite on Railway preview/staging
+gh workflow run staging-tests.yml --ref main
 
-# Manual webhook test
-curl -X POST http://localhost:8000/v1/webhook?client_id=test-store \
+# Health check against cloud dev/staging instance
+curl https://zenny-dev.up.railway.app/health
+
+# Manual webhook smoke test against cloud instance
+curl -X POST https://zenny-dev.up.railway.app/v1/webhook?client_id=test-store \
   -H "Content-Type: application/json" \
   -d '{"action":"request","user_id":"u1","message":"hello"}'
+
+# Run cloud E2E script locally (hits staging, not localhost)
+export ZENNY_BASE_URL=https://zenny-staging.up.railway.app
+poetry run python scripts/testing/test-e2e-cloud.py
 ```
+
+> **Rule:** No `pytest`, no `uvicorn --reload`, and no `localhost:8000` on developer laptops.  
+> All test execution that requires services (Supabase, Redis, LLMs, n8n) runs in Railway CI or against the cloud staging URL.
 
 ---
 
@@ -221,7 +234,7 @@ curl -X POST http://localhost:8000/v1/webhook?client_id=test-store \
 | Staging | Railway (persistent) | E2E + eval suite | Merge to `main` |
 | n8n Test | OCI Free Tier | Workflow validation | Manual / CI |
 
-**Local Machine — Allowed Only:**
+**Local Machine --- Allowed Only:**
 ```bash
 # Check syntax / imports
 poetry run python -m py_compile src/main.py
@@ -233,8 +246,13 @@ curl https://zenny-dev-preview.up.railway.app/health
 gh workflow run staging-tests.yml --ref develop
 ```
 
----
+**Local Machine --- Explicitly Forbidden:**
+- `poetry run pytest tests/` (use CI instead)
+- `docker-compose up` for local n8n (use OCI)
+- `uvicorn src.main:app --reload` for integration testing
+- Any test that requires Supabase, Redis, or LLM keys to be "local"
 
+---
 
 ## DECISIONS MADE
 
